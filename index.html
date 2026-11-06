@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DevFest Stroop Challenge</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d1117; --text: #c9d1d9;
+            --green: #3fb950; --red: #f85149; --blue: #58a6ff;
+            --border: #30363d;
+        }
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: var(--bg); color: var(--text);
+            text-align: center; margin: 0; min-height: 100vh;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            overflow-x: hidden; padding: 15px; box-sizing: border-box;
+        }
+        .screen { display: none; width: 100%; max-width: 420px; }
+        .active { display: flex; flex-direction: column; align-items: center; }
+        h1 { color: var(--blue); margin-bottom: 5px; font-size: 1.6rem; }
+        p { font-size: 0.85rem; color: #8b949e; margin-bottom: 20px; line-height: 1.4; }
+        input {
+            background: #010409; border: 1px solid var(--border);
+            color: var(--green); padding: 15px; font-family: inherit;
+            font-size: 1.1rem; width: 85%; text-align: center;
+            border-radius: 6px; margin-bottom: 20px; outline: none;
+        }
+        .btn {
+            padding: 15px 30px; font-family: inherit; font-size: 1.1rem;
+            font-weight: bold; border: none; border-radius: 6px;
+            cursor: pointer; width: 85%; text-transform: uppercase;
+            transition: 0.1s;
+        }
+        .btn-primary { background: var(--green); color: #fff; }
+        .btn:active { opacity: 0.8; transform: scale(0.98); }
+        .hud {
+            width: 100%; display: flex; justify-content: space-between;
+            align-items: center; margin-bottom: 15px; font-size: 0.9rem;
+            font-weight: bold;
+        }
+        .timer-container {
+            width: 100%; height: 8px; background: #21262d;
+            border-radius: 4px; overflow: hidden; margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+        .timer-bar {
+            width: 100%; height: 100%; background: var(--blue);
+            transition: width 0.1s linear;
+        }
+        .instruction-box {
+            background: #161b22; border: 1px solid var(--border);
+            padding: 12px; border-radius: 6px; margin-bottom: 20px;
+            width: 100%; box-sizing: border-box; font-size: 0.9rem;
+            color: #58a6ff; font-weight: bold;
+        }
+        .grid-container {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+            width: 100%; margin-bottom: 20px;
+        }
+        .card {
+            aspect-ratio: 1; border-radius: 8px; border: 2px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem; font-weight: bold; cursor: pointer;
+            user-select: none; transition: transform 0.1s, border-color 0.1s;
+            box-sizing: border-box; padding: 10px; text-align: center;
+            word-break: break-word;
+        }
+        .card:active { transform: scale(0.95); }
+        .leaderboard-box {
+            background: #161b22; border: 1px solid var(--border);
+            width: 100%; border-radius: 6px; padding: 10px;
+            margin-bottom: 20px; box-sizing: border-box;
+        }
+        li {
+            display: flex; justify-content: space-between;
+            padding: 8px; border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        li:last-child { border-bottom: none; }
+        li span:first-child { color: var(--blue); }
+        li strong { color: var(--green); }
+    </style>
+</head>
+<body>
+    <!-- SCREEN 1: LOGIN -->
+    <div id="screen-login" class="screen active">
+        <h1>&lt;Stroop_Challenge /&gt;</h1>
+        <p>Match colors &amp; text under pressure.<br>You have 5s per round. Don't get tricked!</p>
+        <input type="text" id="username" placeholder="git config user.name" maxlength="12">
+        <button class="btn btn-primary" onclick="startGame()">INIT_GAME()</button>
+    </div>
+
+    <!-- SCREEN 2: GAME -->
+    <div id="screen-game" class="screen">
+        <div class="hud">
+            <span>SCORE: <strong id="current-score" style="color:var(--green)">0</strong></span>
+            <span>STREAK: <strong id="current-streak" style="color:var(--blue)">0</strong></span>
+        </div>
+        <div class="timer-container"><div id="timerBar" class="timer-bar"></div></div>
+        <div id="instruction" class="instruction-box">Find Background: RED</div>
+        <div class="grid-container">
+            <div class="card" id="card-0" onclick="handleCardClick(0)"></div>
+            <div class="card" id="card-1" onclick="handleCardClick(1)"></div>
+            <div class="card" id="card-2" onclick="handleCardClick(2)"></div>
+            <div class="card" id="card-3" onclick="handleCardClick(3)"></div>
+        </div>
+    </div>
+
+    <!-- SCREEN 3: RESULT / LEADERBOARD -->
+    <div id="screen-result" class="screen">
+        <h1 id="result-title">KERNEL PANIC</h1>
+        <p>Final Score: <span id="final-score" style="color:var(--green); font-size:1.2rem; font-weight:bold;">0</span></p>
+        <div class="leaderboard-box">
+            <div style="padding:5px; border-bottom:1px solid var(--border); color:#8b949e">TOP CONTRIBUTORS</div>
+            <ul id="leaderboard-list" style="list-style:none; padding:0; margin:0;">
+                <li style="justify-content:center;">Loading data...</li>
+            </ul>
+        </div>
+        <button class="btn btn-primary" onclick="resetGame()">git reset --hard</button>
+    </div>
+
+    <script>
+        // >>> PASTE YOUR DEPLOYED APPS SCRIPT WEB APP URL HERE <<<
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzK_2I93kPj0MKj5XX0dHBy7RPY2zv4swrejGEBxYzOqcBttUsd9Q_WSqOAlzhVvYV-w/exec';
+
+        let name = "";
+        let score = 0;
+        let streak = 0;
+        let roundTime = 5000; // 5 seconds per round
+        let timerInterval = null;
+        let startTime = null;
+        let correctCardIndex = -1;
+
+        const COLORS = [
+            { name: 'RED', hex: '#f85149' },
+            { name: 'BLUE', hex: '#58a6ff' },
+            { name: 'GREEN', hex: '#3fb950' },
+            { name: 'YELLOW', hex: '#d29922' }
+        ];
+        const rand = arr => arr[Math.floor(Math.random() * arr.length)];
+
+        function startGame() {
+            name = document.getElementById('username').value.trim();
+            if (!name) return alert("Identify yourself, dev.");
+            score = 0;
+            streak = 0;
+            roundTime = 5000;
+            switchScreen('screen-game');
+            nextRound();
+        }
+
+        function nextRound() {
+            document.getElementById('current-score').innerText = score;
+            document.getElementById('current-streak').innerText = streak;
+
+            // 0 = background color, 1 = text color, 2 = the word itself
+            const ruleType = Math.floor(Math.random() * 3);
+            const target = rand(COLORS);
+            const label = ['BACKGROUND', 'TEXT COLOR', 'WORD'][ruleType];
+            document.getElementById('instruction').innerText = `CLICK FRAME WITH ${label}: ${target.name}`;
+
+            correctCardIndex = Math.floor(Math.random() * 4);
+            const cardData = [];
+
+            for (let i = 0; i < 4; i++) {
+                if (i === correctCardIndex) {
+                    cardData.push({
+                        bg: ruleType === 0 ? target.hex : rand(COLORS).hex,
+                        textColor: ruleType === 1 ? target.hex : rand(COLORS).hex,
+                        text: ruleType === 2 ? target.name : rand(COLORS).name
+                    });
+                } else {
+                    let d;
+                    do {
+                        d = { bg: rand(COLORS).hex, text: rand(COLORS).name, textColor: rand(COLORS).hex };
+                    } while (
+                        (ruleType === 0 && d.bg === target.hex) ||
+                        (ruleType === 1 && d.textColor === target.hex) ||
+                        (ruleType === 2 && d.text === target.name)
+                    );
+                    cardData.push(d);
+                }
+            }
+
+            for (let i = 0; i < 4; i++) {
+                const el = document.getElementById(`card-${i}`);
+                el.style.backgroundColor = cardData[i].bg;
+                el.style.color = cardData[i].textColor;
+                el.innerText = cardData[i].text;
+            }
+            startTimer();
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            startTime = Date.now();
+            const bar = document.getElementById('timerBar');
+            bar.style.width = '100%';
+            timerInterval = setInterval(() => {
+                const remaining = roundTime - (Date.now() - startTime);
+                bar.style.width = Math.max(0, (remaining / roundTime) * 100) + '%';
+                if (remaining <= 0) {
+                    clearInterval(timerInterval);
+                    gameOver();
+                }
+            }, 50);
+        }
+
+        function handleCardClick(index) {
+            clearInterval(timerInterval);
+            if (index === correctCardIndex) {
+                score += 100 + (streak * 10);
+                streak++;
+                if (roundTime > 2500) roundTime -= 150; // speed up
+                nextRound();
+            } else {
+                gameOver();
+            }
+        }
+
+        function gameOver() {
+            clearInterval(timerInterval);
+            switchScreen('screen-result');
+            document.getElementById('final-score').innerText = score;
+            const title = document.getElementById('result-title');
+            if (score > 1500) title.innerText = "AI OVERLORD";
+            else if (score > 800) title.innerText = "STAFF ENGINEER";
+            else if (score > 300) title.innerText = "JUNIOR DEV";
+            else title.innerText = "INTERN BUG";
+            saveScore(score);
+        }
+
+        function saveScore(finalScore) {
+            // No Content-Type header on purpose: keeps it a "simple" request so Apps Script doesn't hit a CORS preflight
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({ name: name, stoppedAt: finalScore })
+            })
+            .then(() => fetchLeaderboard())
+            .catch(err => { console.error(err); fetchLeaderboard(); });
+        }
+
+        function fetchLeaderboard() {
+            fetch(SCRIPT_URL)
+            .then(res => res.json())
+            .then(data => {
+                data.sort((a, b) => b.stoppedAt - a.stoppedAt);
+                document.getElementById('leaderboard-list').innerHTML = data.slice(0, 5)
+                    .map(p => `<li><span>${escapeHtml(String(p.name))}</span> <strong>${Number(p.stoppedAt)} pts</strong></li>`)
+                    .join('') || `<li style="justify-content:center;">No scores yet</li>`;
+            })
+            .catch(() => {
+                document.getElementById('leaderboard-list').innerHTML = `<li style="justify-content:center;">Couldn't reach the leaderboard</li>`;
+            });
+        }
+
+        function resetGame() {
+            roundTime = 5000;
+            switchScreen('screen-login');
+        }
+
+        function switchScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        }
+    </script>
+</body>
+</html>
